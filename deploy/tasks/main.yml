@@ -19,50 +19,34 @@
     line: "export PATH=$GEM_HOME/bin:$PATH"
     state: present
 
-- name: Check releases path
-  file: path={{ deploy_to }}/releases state=directory
+- name: ensure releases directory exists
+  file: path={{ deploy_to }}/releases state=directory owner={{ user }} group={{ user }}
 
-- name: Cloning & Updating the bare Git repository
+- name: clone & update the bare Git repository
   git: repo={{ repo }} dest={{ deploy_to }}/scm version={{ branch }} bare=yes update=yes
 
-- name: Cloning the bare Git repository to destination
+- name: clone the bare Git repository to destination
   git: repo={{ deploy_to }}/scm dest={{ build_path }} version={{ branch }} bare=no
 
-- name: Create env
+- name: create env
   template: src=env.js dest={{ shared_path }}/.env owner={{ user }} group={{ user }} mode=0600
 
-- name: Make sure symlink folders exists
-  file: path={{ shared_path }}/{{ item }} state=directory force=yes
-  with_items:
-    - log
-    - public/system
-    - public/shared
-    - vendor/bundle
-
-- name: Make sure symlink destinations do not exist
-  file: path={{ build_path }}/{{ item }} state=absent
-  with_items:
-    - log
-    - public/system
-    - public/shared
-    - vendor/bundle
-
-- name: Symlinking shared files
+- name: symlink shared files
   file: src={{ shared_path }}/{{ item }} dest={{ build_path }}/{{ item }} state=link force=yes recurse=yes
   with_items: $symlinks
 
-- name: Run Bundle
+- name: run Bundle
   bundle: path={{ build_path }}/vendor/bundle gemfile={{ build_path }}/Gemfile deployment=yes binstubs=yes
 
-- name: Migrate the database
+- name: migrate the database
   rails: path={{ build_path }} rails_env={{ rails_env }} current={{ current_path }} migrate=yes bundled=yes
   when: "'{{ migrate }}' == 'yes'"
 
-- name: Precompiling asset files
+- name: precompile asset files
   rails: path={{ build_path }} rails_env={{ rails_env }} current={{ current_path }} assets=yes bundled=yes
   when: "'{{ compile_assets }}' == 'yes'"
 
-- name: Updating the current symlink
+- name: update the current symlink
   file: src={{ build_path }} dest={{ current_path }} state=link force=yes
 
 - name: cleanup old releases
