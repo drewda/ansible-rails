@@ -1,0 +1,31 @@
+---
+- hosts: server
+  user: app
+  gather_facts: False
+  vars:
+    user: app
+    home_directory: "/home/{{ user }}"
+    rails_env: "staging"
+
+  roles:
+    -
+      role: deploy
+
+      repo: git@app@example.com
+      branch: develop
+
+      deploy_to: "{{ home_directory }}"
+      build_path: "{{ deploy_to }}/releases/{{ timestamp.stdout }}"
+      shared_path: "{{ deploy_to }}/shared"
+      current_path: "{{ deploy_to }}/current"
+      migrate: yes
+      compile_assets: yes
+
+      symlinks:
+        - config/private_pub.yml
+        - log
+        - public/system
+        - public/shared
+        - .env
+        - config/database.yml
+        - vendor/bundle

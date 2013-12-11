@@ -1,0 +1,109 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2013, Raphael Randschau <nicolai86@me.com>
+
+DOCUMENTATION = '''
+---
+module: bundler
+short_description: Install Application Dependencies
+version_added: "1.0"
+options:
+  executable:
+    description:
+      - Bundler executable
+    required: no
+    default: $GEM_HOME/bin/bundle
+  deployment:
+    description:
+      - Run for deployment
+    required: false
+    default: yes
+  path:
+    description:
+      - Path to install dependencies into
+    required: false
+author: Raphael Randschau
+'''
+
+EXAMPLES = '''
+# Installs application dependencies
+- bundle: path=shared/vendor deployment=yes
+'''
+
+import re
+import os
+import sys
+import subprocess
+
+def load_env():
+    home_path = os.getenv('HOME')
+    env_command = ['/bin/bash', '-c', 'source ' + home_path + '/.bashrc && env']
+
+    proc = subprocess.Popen(env_command, stdout = subprocess.PIPE)
+    env = {}
+    for line in proc.stdout:
+      (key, _, value) = line.decode("utf-8").strip().partition("=")
+      env[key] = value
+
+    proc.communicate()
+
+    return dict(env)
+
+def get_bundle_path(module):
+    if module.params['executable']:
+        return module.params['executable']
+    else:
+        extra_paths = []
+
+        gem_home = load_env()['GEM_HOME']
+        if gem_home:
+            print('with GEM_HOME')
+            extra_paths.append(gem_home + '/bin')
+
+        return module.get_bin_path('bundle', True, extra_paths)
+
+def install(module):
+    if module.check_mode:
+        return
+
+    cmd = [ get_bundle_path(module) ]
+
+    cmd.append('install')
+    cmd.append('--without=deployment:test')
+    if module.params['path']:
+        cmd.append('--path=' + module.params['path'])
+    if module.params['gemfile']:
+        cmd.append('--gemfile=' + module.params['gemfile'])
+    if module.params['binstubs']:
+        cmd.append('--binstubs=bin/')
+    if module.params['deployment']:
+        cmd.append('--deployment')
+    module.run_command(cmd, check_rc=True)
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            path           = dict(required=True, type='str'),
+            executable     = dict(required=False, type='str'),
+            gemfile        = dict(required=True, type='str'),
+            deployment     = dict(required=False, type='bool'),
+            binstubs       = dict(required=False, type='bool'),
+        ),
+        supports_check_mode = True,
+        mutually_exclusive = [ ],
+    )
+
+    changed = False
+    install(module)
+
+    result = {}
+    result['path'] = module.params['path']
+    result['executable'] = module.params['executable']
+    result['changed'] = changed
+
+    module.exit_json(**result)
+
+# include magic from lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()

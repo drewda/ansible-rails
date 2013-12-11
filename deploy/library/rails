@@ -1,0 +1,217 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2013, Raphael Randschau <nicolai86@me.com>
+
+DOCUMENTATION = '''
+---
+module: railse
+short_description: Run rails & rails related rake commands
+version_added: "1.0"
+author: Raphael Randschau
+options:
+  executable:
+    description:
+      - Bundler executable
+    required: no
+    default: $GEM_HOME/bin/bundle
+  path:
+    description:
+      - path which should cd'd into to run commands
+    required: yes
+  current:
+    description:
+      - path of current version. used to decide if migrations and precompilations are necessary
+    required: no
+  rails_env:
+    description:
+      - RAILS_ENV used by commands
+    required: no
+  bundled:
+    description:
+      - use `bundle exec rake` or `bundle exec rails` instead of `rake` and `rails`
+    required: no
+    default: no
+  migrate:
+    description:
+      - migrate the database
+    required: no
+  assets:
+    description:
+      - precompile the assets
+    required: no
+'''
+
+EXAMPLES = '''
+# Installs application dependencies
+- bundle: path=shared/vendor deployment=yes
+'''
+
+import re
+import os
+import sys
+import subprocess
+
+def load_env():
+    home_path = os.getenv('HOME')
+    env_command = ['/bin/bash', '-c', 'source ' + home_path + '/.bashrc && env']
+
+    proc = subprocess.Popen(env_command, stdout = subprocess.PIPE)
+    env = {}
+    for line in proc.stdout:
+      (key, _, value) = line.decode("utf-8").strip().partition("=")
+      env[key] = value
+
+    proc.communicate()
+
+    return dict(env)
+
+def get_bundle_path(module):
+    extra_paths = []
+
+    gem_home = load_env()['GEM_HOME']
+    if gem_home:
+        extra_paths.append(gem_home + '/bin')
+
+    return module.get_bin_path('bundle', True, extra_paths)
+
+def get_rake_path(module):
+    extra_paths = []
+
+    gem_home = load_env()['GEM_HOME']
+    if gem_home:
+        extra_paths.append(gem_home + '/bin')
+
+    return module.get_bin_path('rake', True, extra_paths)
+
+def install(module):
+    if module.check_mode:
+        return
+
+    cmd = [ get_rake_path(module) ]
+
+    cmd.append('install')
+    cmd.append('--without=deployment:test')
+    if module.params['path']:
+        cmd.append('--path=' + module.params['path'])
+    module.run_command(cmd, check_rc=True)
+
+def diff(path_a, path_b):
+    diff_cmd = ['diff', '-r', path_a, path_b]
+    proc = subprocess.Popen(diff_cmd, stdout = subprocess.PIPE)
+    diff = 0
+
+    for line in proc.stdout:
+      diff = int(line.decode("utf-8").strip())
+      break
+
+    proc.communicate()
+    return diff
+
+def copy(from_path, to_path):
+    diff_cmd = ['cp', '-R', from_path, to_path]
+    proc = subprocess.Popen(diff_cmd, stdout = subprocess.PIPE)
+    proc.communicate()
+
+def migrate(module):
+    if module.check_mode:
+        return
+
+    if module.params['current']:
+        current_db_schema = module.params['current'] + '/db/schema.rb'
+        next_db_schema = module.params['path'] + '/db/schema.rb'
+
+        if os.path.exists(current_db_schema):
+            if diff(current_db_schema, next_db_schema) == 0:
+                print("DB schema unchanged. Skipping")
+                return
+
+    os.chdir(module.params['path'])
+
+    cmd = []
+    if module.params['rails_env']:
+        os.environ['RAILS_ENV'] = module.params['rails_env']
+
+    if module.params['bundled']:
+        cmd.append(get_bundle_path(module))
+        cmd.append('exec')
+        cmd.append('rake')
+    else:
+        cmd.append(get_rake_path(module))
+
+    cmd.append('db:migrate')
+
+    module.run_command(cmd, check_rc=True)
+
+def precompile_assets(module):
+    if module.check_mode:
+        return
+
+    os.chdir(module.params['path'])
+
+    if module.params['current']:
+        if os.path.exists(module.params['current'] + '/public/assets'):
+            total_diff = diff(
+                    module.params['current'] + '/app/assets/',
+                    module.params['path'] + '/app/assets/'
+                ) + diff(
+                    module.params['current'] + '/vendor/assets/',
+                    module.params['path'] + '/vendor/assets/'
+                )
+
+            if total_diff == 0:
+                print("Assets unchanged. Skipping")
+                copy(
+                    module.params['current'] + '/public/assets',
+                    module.params['path'] + '/public/assets'
+                )
+                return
+
+    cmd = []
+    if module.params['rails_env']:
+        os.environ['RAILS_ENV'] = module.params['rails_env']
+    os.environ['RAILS_GROUPS'] = 'assets'
+
+    if module.params['bundled']:
+        cmd.append(get_bundle_path(module))
+        cmd.append('exec')
+        cmd.append('rake')
+    else:
+        cmd.append(get_rake_path(module))
+
+    cmd.append('assets:precompile')
+
+    module.run_command(cmd, check_rc=True)
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            path           = dict(required=True, type='str'),
+            current        = dict(required=False, type='str'),
+            rails_env      = dict(required=False, type='str'),
+            bundled        = dict(required=False, type='bool'),
+            migrate        = dict(required=False, type='bool'),
+            assets         = dict(required=False, type='bool'),
+        ),
+        supports_check_mode = True,
+        mutually_exclusive = [ ],
+    )
+
+    changed = False
+    if module.params['migrate']:
+        # TODO wurden migration ausgeführt
+        migrate(module)
+
+    if module.params['assets']:
+        # TODO wurden assets erzeugt
+        precompile_assets(module)
+
+    result = {}
+    result['path'] = module.params['path']
+    result['changed'] = changed
+
+    module.exit_json(**result)
+
+# include magic from lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()
