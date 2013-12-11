@@ -44,7 +44,8 @@ options:
 
 EXAMPLES = '''
 # Installs application dependencies
-- bundle: path=shared/vendor deployment=yes
+rails: path=/path rails_env=staging current=/current migrate=yes bundled=yes
+rails: path=/path rails_env=staging current=/current assets=yes bundled=yes
 '''
 
 import re
@@ -83,18 +84,6 @@ def get_rake_path(module):
         extra_paths.append(gem_home + '/bin')
 
     return module.get_bin_path('rake', True, extra_paths)
-
-def install(module):
-    if module.check_mode:
-        return
-
-    cmd = [ get_rake_path(module) ]
-
-    cmd.append('install')
-    cmd.append('--without=deployment:test')
-    if module.params['path']:
-        cmd.append('--path=' + module.params['path'])
-    module.run_command(cmd, check_rc=True)
 
 def diff(path_a, path_b):
     diff_cmd = ['diff', '-r', path_a, path_b]
