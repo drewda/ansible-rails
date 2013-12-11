@@ -19,6 +19,16 @@ options:
       - Run for deployment
     required: false
     default: yes
+  binstubs:
+    description:
+      - generate binstubs
+    required: false
+    default: no
+  gemfile:
+    description:
+      - Path of Gemfile to run against
+    required: false
+    default: yes
   path:
     description:
       - Path to install dependencies into
