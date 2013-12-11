@@ -3,14 +3,21 @@
   shell: "date +%Y%m%d%H%M%S"
   register: timestamp
 
-- name: always source ~/.bashrc
-  lineinfile: dest=~/.bashrc regexp='[ -z "$PS1" ] && return' line='# [ -z "$PS1" ] && return' state=present
+- name: add GEM_HOME to .bashrc
+  lineinfile:
+    dest: "{{ home_directory }}/.bashrc"
+    insertafter: BOF
+    regexp: ^export.GEM_HOME
+    line: "export GEM_HOME=$HOME/.gem"
+    state: present
 
-- name: set GEM_HOME
-  lineinfile: dest="{{ home_directory }}/.bashrc" insertafter=EOF regexp=^export.GEM_HOME line="export GEM_HOME=$HOME/.gem" state=present
-
-- name: set PATH
-  lineinfile: dest="{{ home_directory }}/.bashrc" insertafter=EOF regexp=^export.PATH=.GEM_HOME line="export PATH=$GEM_HOME/bin:$PATH" state=present
+- name: update PATH with $GEM_HOME/bin
+  lineinfile:
+    dest: "{{ home_directory }}/.bashrc"
+    insertafter: BOF
+    regexp: ^export.PATH=.GEM_HOME
+    line: "export PATH=$GEM_HOME/bin:$PATH"
+    state: present
 
 - name: Check releases path
   file: path={{ deploy_to }}/releases state=directory
