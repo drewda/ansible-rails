@@ -31,13 +31,11 @@ Also contains a role which deploys just like capistrano/ mina.
       compile_assets: yes
 
       symlinks:
-        - config/private_pub.yml
+        - vendor/bundle
+        - public/assets
         - log
-        - public/system
-        - public/shared
         - .env
         - config/database.yml
-        - vendor/bundle
 ```
 
 ## requirements
