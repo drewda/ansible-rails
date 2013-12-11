@@ -4,7 +4,7 @@ Ansible extensions to work with bundler and rails related commands.
 
 Also contains a role which deploys just like capistrano/ mina.
 
-## example usage
+## example usage of deploy role
 
 ``` yaml
 ---
@@ -48,3 +48,4 @@ Also contains a role which deploys just like capistrano/ mina.
   - works with rvm, rbenv or system ruby installations.
   - it's using a bare copy of the repository to deploy.
   - migration and asset compilation can be de-activated as needed.
+  - only keeps 5 most recent deployments per default
