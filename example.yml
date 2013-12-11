@@ -11,7 +11,7 @@
     -
       role: deploy
 
-      repo: git@app@example.com
+      repo: git@example.com:app
       branch: develop
 
       deploy_to: "{{ home_directory }}"
@@ -22,10 +22,8 @@
       compile_assets: yes
 
       symlinks:
-        - config/private_pub.yml
+        - vendor/bundle
+        - public/assets
         - log
-        - public/system
-        - public/shared
         - .env
         - config/database.yml
-        - vendor/bundle
