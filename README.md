@@ -2,7 +2,7 @@
 
 Ansible extensions to work with bundler and rails related commands.
 
-Also contains a role which does what capistrano/ mina does upon deployment.
+Also contains a role which deploys just like capistrano/ mina.
 
 ## example usage
 
