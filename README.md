@@ -20,7 +20,7 @@ Also contains a role which deploys just like capistrano/ mina.
     -
       role: deploy
 
-      repo: git@app@example.com
+      repo: git@example.com:app
       branch: develop
 
       deploy_to: "{{ home_directory }}"
